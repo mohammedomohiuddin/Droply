@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works | Droply</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="info.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="shell">
+        <header class="topbar"><a class="brand" href="p2ptransfer.html"><span class="brand-mark"><span></span></span>Droply</a><nav aria-label="Primary navigation"><a href="p2ptransfer.html">Home</a><a class="active" href="how-it-works.html">How it works</a><a href="why-droply.html">Why Droply</a><a href="faq.html">FAQ</a></nav><button class="theme-toggle" type="button" aria-label="Toggle theme"><i data-lucide="sun"></i></button></header>
+        <main>
+            <section class="hero"><span class="eyebrow">SIMPLE BY DESIGN</span><h1>Move files without the <span class="gradient">middleman.</span></h1><p class="lede">Droply connects two browsers directly. Pick a file, share a short peer code, and download it on the other device.</p><a class="back-link" href="p2ptransfer.html"><i data-lucide="arrow-left"></i>Back to transfer</a></section>
+            <section class="content-grid" aria-label="How Droply works">
+                <article class="info-card"><span class="card-number">01 / SEND</span><h2>Choose your files</h2><p>Drag files into the Send Files panel or browse from your device. Files stay in your browser until you choose to share them.</p></article>
+                <article class="info-card"><span class="card-number">02 / CONNECT</span><h2>Share the peer code</h2><p>Droply creates a six-character PeerJS ID. Share it directly or open the generated QR code on the receiving device.</p></article>
+                <article class="info-card"><span class="card-number">03 / RECEIVE</span><h2>Connect and choose</h2><p>The receiver enters the code and gets a live list of available files. Each file can be downloaded separately.</p></article>
+                <article class="info-card"><span class="card-number">04 / TRANSFER</span><h2>Download directly</h2><p>File data moves through an encrypted WebRTC data channel in chunks. The browser rebuilds the original file and verifies its contents before download.</p></article>
+                <article class="info-card wide"><span class="card-number">WHAT YOU NEED</span><h2>Two browsers, one open session</h2><p>Both people keep Droply open while transferring. An internet connection is needed for PeerJS discovery; the file data then travels directly between the connected browsers.</p></article>
+            </section>
+        </main>
+    </div>
+    <script>
+        lucide.createIcons();
+        const body = document.body;
+        const toggle = document.querySelector('.theme-toggle');
+        const setTheme = (light) => { body.classList.toggle('light', light); toggle.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme'); toggle.innerHTML = `<i data-lucide="${light ? 'moon' : 'sun'}"></i>`; lucide.createIcons(); localStorage.setItem('droply-theme', light ? 'light' : 'dark'); };
+        setTheme(localStorage.getItem('droply-theme') === 'light');
+        toggle.addEventListener('click', () => setTheme(!body.classList.contains('light')));
+    </script>
+</body>
+</html>

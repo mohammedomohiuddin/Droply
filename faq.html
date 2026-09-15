@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ | Droply</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="info.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="shell">
+        <header class="topbar"><a class="brand" href="p2ptransfer.html"><span class="brand-mark"><span></span></span>Droply</a><nav aria-label="Primary navigation"><a href="p2ptransfer.html">Home</a><a href="how-it-works.html">How it works</a><a href="why-droply.html">Why Droply</a><a class="active" href="faq.html">FAQ</a></nav><button class="theme-toggle" type="button" aria-label="Toggle theme"><i data-lucide="sun"></i></button></header>
+        <main>
+            <section class="hero"><span class="eyebrow">QUESTIONS, ANSWERED</span><h1>Everything you need to <span class="gradient">know.</span></h1><p class="lede">A quick guide to connecting devices, moving files, and understanding what happens to your data.</p><a class="back-link" href="p2ptransfer.html"><i data-lucide="arrow-left"></i>Back to transfer</a></section>
+            <section class="faq-list" aria-label="Frequently asked questions">
+                <details open><summary>Does Droply upload my files?</summary><p>No. After PeerJS helps the browsers discover each other, the file data travels directly over WebRTC between the sender and receiver.</p></details>
+                <details><summary>Can I transfer images and videos?</summary><p>Yes. Droply transfers binary files, including images, videos, archives, PDFs, and other file types. The receiver verifies the file contents before downloading.</p></details>
+                <details><summary>How do I connect two devices?</summary><p>Open Droply on both devices. On the sending device, share the six-character peer code or QR code. On the receiving device, enter the code and select Connect &amp; Receive.</p></details>
+                <details><summary>Do both devices need to stay open?</summary><p>Yes. Droply is a live peer-to-peer transfer, so both browser pages must remain open until the transfer finishes.</p></details>
+                <details><summary>Will it work on different networks?</summary><p>Usually, yes. PeerJS and WebRTC handle discovery across most home and mobile networks. Strict firewalls may block a direct route unless a TURN relay is configured.</p></details>
+                <details><summary>Is there a file-size limit?</summary><p>Droply does not set an application file-size limit. Very large files still depend on available device storage, browser limits, and the stability of the network connection.</p></details>
+                <details><summary>Why did my connection fail?</summary><p>Check that both devices are online, the code is current, and both pages are open. Corporate, school, or carrier networks can also restrict WebRTC connections.</p></details>
+            </section>
+        </main>
+    </div>
+    <script>
+        lucide.createIcons();
+        const body = document.body;
+        const toggle = document.querySelector('.theme-toggle');
+        const setTheme = (light) => { body.classList.toggle('light', light); toggle.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme'); toggle.innerHTML = `<i data-lucide="${light ? 'moon' : 'sun'}"></i>`; lucide.createIcons(); localStorage.setItem('droply-theme', light ? 'light' : 'dark'); };
+        setTheme(localStorage.getItem('droply-theme') === 'light');
+        toggle.addEventListener('click', () => setTheme(!body.classList.contains('light')));
+    </script>
+</body>
+</html>
