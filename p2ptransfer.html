@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droply | Instant P2P File Transfer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --ink: #080911; --panel: rgba(15, 16, 30, .84); --line: rgba(154, 82, 255, .5); --muted: #9ca1c1; --purple: #a35cff; --violet: #7433ff; --surface: rgba(27, 27, 46, .55); --field: rgba(22, 21, 43, .8); }
+        body.light { --ink: #f5f2ff; --panel: rgba(255, 255, 255, .82); --line: rgba(125, 65, 216, .38); --muted: #5e5c78; --surface: rgba(237, 233, 250, .9); --field: rgba(247, 245, 255, .95); color: #211b38; background: radial-gradient(circle at 50% 35%, #fff 0, #f1edff 48%, #e7e1f8 100%); }
+        * { box-sizing: border-box; }
+        html { overflow-x: hidden; }
+        body { margin: 0; min-width: 0; color: #f8f7ff; background: radial-gradient(circle at 50% 35%, #17102c 0, var(--ink) 45%, #07080d 100%); font-family: Manrope, sans-serif; overflow-x: hidden; }
+        body.light { color: #211b38; background: radial-gradient(circle at 50% 35%, #fff 0, #f1edff 48%, #e7e1f8 100%); }
+        body::before { content: ''; position: fixed; width: 160vw; height: 62vw; left: -30vw; top: 18vh; border-radius: 50%; border: 38px solid rgba(113, 35, 255, .18); transform: rotate(-15deg); filter: blur(1px); pointer-events: none; }
+        body::after { content: ''; position: fixed; inset: 0; background: linear-gradient(115deg, transparent 0 22%, rgba(145, 65, 255, .06) 36%, transparent 53%); pointer-events: none; }
+        body.light::before { border-color: rgba(133, 71, 225, .12); }
+        body.light::after { background: linear-gradient(115deg, transparent 0 22%, rgba(145, 65, 255, .035) 36%, transparent 53%); }
+        button, input { font: inherit; }
+        button { color: inherit; cursor: pointer; }
+        .shell { position: relative; z-index: 1; width: min(1280px, calc(100% - 48px)); margin: auto; }
+        .topbar { min-height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(136, 127, 185, .18); }
+        .brand { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 800; letter-spacing: -.06em; }
+        .brand-mark { width: 29px; height: 29px; position: relative; transform: skew(-13deg); }
+        .brand-mark::before, .brand-mark::after { content: ''; position: absolute; width: 20px; height: 12px; border-radius: 3px; transform: skew(-18deg); transition: background-color .25s ease; }
+        .brand-mark::before { left: 1px; top: 1px; background: #a04cff; }
+        .brand-mark::after { right: 0; bottom: 1px; background: #e6e3ff; }
+        .brand-mark span { position: absolute; z-index: 2; width: 18px; height: 11px; left: 7px; top: 9px; background: #8c49ff; transform: skew(-18deg); }
+        nav { display: flex; gap: 30px; margin-right: auto; margin-left: 60px; height: 76px; align-items: center; }
+        nav a { color: #b8b6ce; font-size: 13px; text-decoration: none; height: 100%; display: grid; place-items: center; border-bottom: 2px solid transparent; }
+        nav a:hover, nav a.active { color: #fff; border-color: var(--purple); }
+        .theme-toggle { width: 38px; height: 38px; border: 1px solid rgba(160, 116, 255, .18); border-radius: 50%; background: rgba(20, 18, 38, .85); display: grid; place-items: center; }
+        .theme-toggle svg { width: 18px; color: #ded8ff; }
+        body.light .theme-toggle { background: rgba(255, 255, 255, .8); }
+        body.light .theme-toggle svg { color: #6f40c8; }
+        body.light .brand-mark::after { background: #161321; }
+        body.light .brand, body.light h1, body.light h2, body.light h3, body.light .file-name, body.light .feature strong { color: #211b38; }
+        body.light nav a, body.light .scribble, body.light .dropzone h3, body.light .badge, body.light .qr-copy strong { color: #40365e; }
+        body.light .panel, body.light .dropzone, body.light .segmented, body.light .file-row, body.light .qr-row { background: var(--panel); }
+        body.light .hero p, body.light .dropzone small, body.light .file-size, body.light .code-label, body.light .qr-copy small, body.light .feature span, body.light .peer-status { color: #696582; }
+        body.light .dropzone, body.light .dropzone:hover, body.light .dropzone.dragging { color: #40365e !important; background: rgba(255, 255, 255, .78) !important; border-color: rgba(112, 78, 190, .42) !important; }
+        body.light .badge { background: rgba(238, 234, 251, .9); border-color: rgba(113, 91, 168, .2); }
+        body.light .segmented { background: rgba(235, 231, 249, .9); }
+        body.light .segmented button { color: #625a80; }
+        body.light .code-box { color: #211b38; border-color: #aaa0ca; }
+        body.light .file-row, body.light .qr-row { border-color: rgba(113, 91, 168, .22); }
+        body.light .divider { color: #70698a; }
+        .hero { text-align: center; padding: 28px 0 27px; position: relative; }
+        .eyebrow { color: #c078ff; font-size: 10px; letter-spacing: .45em; font-weight: 700; }
+        h1 { margin: 14px 0 7px; font-size: clamp(34px, 4.1vw, 57px); line-height: 1.1; letter-spacing: -.055em; }
+        .gradient { color: #a750ff; text-shadow: 0 0 24px rgba(153, 65, 255, .35); }
+        .hero p { margin: 0; color: #afb2d0; font-size: 15px; }
+        .scribble { position: absolute; right: 7px; top: 29px; color: #d1cee5; font: 20px Caveat, cursive; line-height: 1.03; transform: rotate(-7deg); text-align: left; }
+        .scribble svg { display: block; margin: 5px 0 0 8px; width: 35px; transform: rotate(-15deg); color: #c39dff; }
+        .transfer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 26px 30px 20px; box-shadow: 0 0 28px rgba(121, 44, 255, .14), inset 0 0 24px rgba(65, 37, 125, .08); backdrop-filter: blur(13px); }
+        .panel-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+        .panel-icon { width: 55px; height: 55px; flex: 0 0 55px; display: grid; place-items: center; color: #c078ff; background: rgba(107, 47, 189, .18); border: 1px solid rgba(173, 91, 255, .3); border-radius: 14px; box-shadow: inset 0 0 17px rgba(140, 67, 255, .14); }
+        .panel-icon svg { width: 28px; height: 28px; }
+        h2 { margin: 0 0 3px; font-size: 20px; letter-spacing: -.04em; }
+        .panel-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+        .dropzone { min-height: 237px; padding: 27px 20px 15px; border: 1px dashed rgba(142, 122, 220, .48); border-radius: 16px; text-align: center; background: rgba(6, 8, 18, .42); transition: .2s ease; }
+        .dropzone:hover, .dropzone.dragging { border-color: var(--purple); background: rgba(81, 39, 139, .13); }
+        .drop-icon { width: 49px; height: 49px; margin: 0 auto 12px; display: grid; place-items: center; color: #b16bff; filter: drop-shadow(0 0 10px rgba(156, 68, 255, .75)); }
+        .drop-icon svg { width: 48px; height: 48px; }
+        .dropzone h3 { margin: 0; font-size: 16px; }
+        .browse { margin: 3px 0 11px; color: #bb66ff; font-size: 11px; font-weight: 700; }
+        .dropzone small { display: block; color: #a1a4c0; font-size: 10px; line-height: 1.7; }
+        .badges { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+        .badge { display: flex; align-items: center; gap: 6px; color: #d8d8eb; padding: 7px 11px; border-radius: 14px; background: rgba(29, 28, 49, .67); border: 1px solid rgba(105, 100, 151, .18); font-size: 10px; }
+        .badge svg { width: 13px; height: 13px; }
+        .file-row, .qr-row { display: flex; align-items: center; gap: 13px; background: var(--surface); border: 1px solid rgba(94, 95, 138, .25); border-radius: 14px; }
+        .file-row { margin-top: 17px; padding: 10px 13px; }
+        .file-icon { width: 34px; height: 38px; display: grid; place-items: center; color: white; background: #bb9bff; border-radius: 7px; }
+        .file-icon svg { width: 18px; }
+        .file-meta { min-width: 0; flex: 1; }
+        .file-name { display: flex; justify-content: space-between; color: #f4f1ff; font-size: 11px; font-weight: 700; }
+        .file-size { color: #a9abc4; font-size: 10px; margin-top: 2px; }
+        .progress { height: 5px; margin-top: 6px; overflow: hidden; background: #282641; border-radius: 8px; }
+        .progress span { display: block; width: 78%; height: 100%; background: linear-gradient(90deg, #9a40ff, #b964ff); border-radius: inherit; box-shadow: 0 0 8px #a345ff; }
+        .remove { border: 0; background: none; color: #bbb9d2; padding: 5px; }
+        .remove:hover { color: white; }
+        .segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 2px; margin-bottom: 25px; background: rgba(30, 27, 51, .72); border: 1px solid rgba(100, 93, 150, .22); border-radius: 12px; }
+        .segmented button { border: 1px solid transparent; padding: 8px; border-radius: 9px; background: transparent; color: #b7b4cc; font-size: 11px; }
+        .segmented button.active { color: white; background: linear-gradient(100deg, rgba(126, 59, 221, .7), rgba(93, 41, 157, .4)); border-color: #a154ff; box-shadow: 0 0 12px rgba(158, 74, 255, .3); }
+        .segmented svg { width: 15px; vertical-align: -3px; margin-right: 6px; }
+        .code-label { margin: 0 0 16px; text-align: center; color: #a9abc5; font-size: 11px; }
+        .code-inputs { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .code-box { width: 51px; height: 51px; border-radius: 9px; border: 1px solid #4a4677; outline: none; background: var(--field); color: white; text-align: center; font-size: 18px; font-weight: 800; }
+        .code-box:focus { border-color: #bb6aff; box-shadow: 0 0 0 2px rgba(171, 77, 255, .15); }
+        .primary { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; border: 0; border-radius: 9px; padding: 11px; color: white; background: linear-gradient(100deg, #8e3dff, #b24cff); box-shadow: 0 0 18px rgba(147, 58, 255, .48); font-size: 12px; font-weight: 800; }
+        .primary:hover { filter: brightness(1.12); }
+        .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 17px; color: #a4a4c2; font-size: 10px; }
+        .divider::before, .divider::after { content: ''; height: 1px; flex: 1; background: rgba(111, 102, 163, .25); }
+        .qr-row { justify-content: space-between; padding: 12px 14px; cursor: pointer; }
+        .qr-copy { display: flex; align-items: center; gap: 13px; }
+        .qr-copy svg { color: #ddd9ff; width: 25px; height: 25px; }
+        .qr-copy strong { display: block; font-size: 11px; }
+        .qr-copy small { display: block; color: #a5a8c4; margin-top: 3px; font-size: 10px; }
+        .qr-row > svg { color: #dbd7fa; width: 18px; }
+        .action-message { min-height: 16px; margin: 10px 0 0; color: #c37bff; text-align: center; font-size: 10px; }
+        .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgba(3, 3, 10, .7); backdrop-filter: blur(8px); }
+        .modal-backdrop[hidden] { display: none; }
+        .modal { width: min(430px, 100%); padding: 24px; position: relative; border: 1px solid var(--line); border-radius: 18px; background: #151326; box-shadow: 0 20px 70px rgba(0, 0, 0, .45); }
+        body.light .modal { background: #fff; color: #211b38; }
+        .modal h2 { margin-bottom: 8px; }
+        .modal p { margin: 0 0 17px; color: var(--muted); font-size: 12px; }
+        .modal input { width: 100%; padding: 12px; border: 1px solid #514878; border-radius: 9px; outline: none; background: var(--field); color: inherit; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; }
+        .modal-actions button { padding: 9px 14px; border: 0; border-radius: 8px; background: #30284c; font-size: 11px; }
+        .modal-actions .primary { width: auto; padding: 9px 14px; }
+        .modal-close { position: absolute; top: 12px; right: 12px; padding: 6px; border: 0; background: transparent; color: #aaa5c4; }
+        .qr-code-art { width: 150px; height: 150px; margin: 5px auto 18px; display: grid; place-items: center; border: 10px solid white; border-radius: 5px; background: repeating-linear-gradient(45deg, #151326 0 5px, white 5px 9px); color: #151326; }
+        .qr-code-art svg { width: 100px; height: 100px; background: white; }
+        #qr-code { width: 150px; height: 150px; margin: 5px auto 18px; padding: 8px; display: grid; place-items: center; border-radius: 5px; background: white; }
+        #qr-code img, #qr-code canvas { max-width: 100%; max-height: 100%; }
+        .peer-status { min-height: 16px; margin: 8px 0 0; color: #a9abc5; font-size: 10px; }
+        .peer-status strong { color: #c37bff; }
+        .remote-files { display: grid; gap: 8px; margin-top: 14px; }
+        .remote-files[hidden] { display: none; }
+        .remote-file { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid rgba(94, 95, 138, .25); border-radius: 11px; background: var(--surface); }
+        .remote-file-info { min-width: 0; flex: 1; }
+        .remote-file-name { display: block; overflow: hidden; color: #f4f1ff; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+        .remote-file-size { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .remote-file button { flex: 0 0 auto; padding: 7px 9px; border: 0; border-radius: 7px; color: white; background: #8e3dff; font-size: 10px; }
+        .remote-file-progress { height: 3px; margin-top: 5px; overflow: hidden; border-radius: 4px; background: rgba(120, 111, 160, .25); }
+        .remote-file-progress span { display: block; width: 0; height: 100%; background: var(--purple); transition: width .15s ease; }
+        body.light .remote-file { background: var(--surface); border-color: rgba(113, 91, 168, .22); }
+        body.light .remote-file-name { color: #211b38; }
+        .features { display: grid; grid-template-columns: repeat(4, 1fr); margin: 20px 0 0; padding: 0 0 20px; }
+        .feature { display: grid; grid-template-columns: 43px 1fr; align-items: center; gap: 10px; min-height: 55px; padding: 0 20px; border-right: 1px solid rgba(117, 110, 165, .25); }
+        .feature:first-child { padding-left: 0; }
+        .feature:last-child { border: 0; }
+        .feature-icon { width: 38px; height: 38px; display: grid; place-items: center; color: #c06bff; background: rgba(94, 39, 168, .24); border: 1px solid rgba(150, 73, 255, .2); border-radius: 50%; }
+        .feature-icon svg { width: 19px; }
+        .feature strong { display: block; font-size: 10px; }
+        .feature span { display: block; margin-top: 3px; color: #a4a6c2; font-size: 9px; white-space: nowrap; }
+        .bottom-note { position: absolute; display: flex; align-items: center; gap: 8px; color: #d2cfe2; font: 18px Caveat, cursive; line-height: 1; }
+        .bottom-note svg { width: 27px; color: #d0a5ff; }
+        .note-left { left: -42px; bottom: 2px; transform: rotate(-5deg); }
+        .note-right { right: -40px; bottom: 2px; transform: rotate(4deg); }
+        .note-right svg { order: -1; transform: rotate(180deg); }
+        #file-input { display: none; }
+        @media (max-width: 900px) { .shell { width: min(680px, calc(100% - 32px)); } .topbar { min-height: 68px; } nav { display: none; } .hero { padding-top: 32px; text-align: left; } .hero p { max-width: 520px; line-height: 1.7; } .scribble { display: none; } .transfer-grid { grid-template-columns: 1fr; gap: 18px; } .panel { padding: 20px 22px 18px; } .features { margin-top: 23px; } .feature { padding: 0 10px; grid-template-columns: 36px 1fr; } .feature span { white-space: normal; } .bottom-note { display: none; } }
+        @media (max-width: 520px) { .shell { width: calc(100% - 28px); } .brand { font-size: 25px; } .hero { padding: 29px 17px 23px; } .eyebrow { font-size: 9px; letter-spacing: .34em; } h1 { font-size: 39px; line-height: 1.03; margin-top: 12px; } .hero p { font-size: 14px; line-height: 1.65; } .panel { border-radius: 20px; padding: 19px 16px 16px; } .panel-heading { gap: 15px; margin-bottom: 16px; } .panel-icon { width: 52px; height: 52px; flex-basis: 52px; } h2 { font-size: 19px; } .panel-heading p { font-size: 11px; } .dropzone { min-height: 327px; padding-top: 28px; display: flex; flex-direction: column; justify-content: center; } .dropzone h3 { font-size: 17px; } .dropzone small { font-size: 12px; max-width: 230px; margin: 0 auto; line-height: 1.7; } .badges { gap: 9px; margin: 20px 0 0; } .badge { padding: 8px 13px; font-size: 11px; } .badge:nth-child(4) { display: none; } .file-row { margin-top: 16px; padding: 10px; } .file-name { font-size: 12px; } .code-inputs { gap: 5px; } .code-box { width: 0; flex: 1; min-width: 0; height: 57px; } .features { grid-template-columns: repeat(2, 1fr); gap: 20px 0; margin-top: 24px; } .feature { border-right: 0; padding: 0 7px; } .feature:nth-child(odd) { padding-left: 0; } .feature:nth-child(even) { border-left: 1px solid rgba(117, 110, 165, .25); } }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <header class="topbar">
+            <a class="brand" href="#" aria-label="Droply home"><span class="brand-mark"><span></span></span>Droply</a>
+            <nav aria-label="Primary navigation"><a class="active" href="#home">Home</a><a href="#how-it-works">How it works</a><a href="#why-droply">Why Droply</a><a href="#faq">FAQ</a></nav>
+            <button class="theme-toggle" type="button" aria-label="Toggle theme"><i data-lucide="sun"></i></button>
+        </header>
+
+        <main id="home">
+            <section class="hero">
+                <span class="eyebrow">FILES MOVE BETTER TOGETHER</span>
+                <h1>Send or Receive. <span class="gradient">Instantly.</span></h1>
+                <p>Transfer files directly between devices. No accounts. No limits. Just a link (or a code).</p>
+                <div class="scribble">Same file.<br>Different device.<br>No problem.<i data-lucide="corner-left-down"></i></div>
+            </section>
+
+            <section class="transfer-grid" aria-label="File transfer actions">
+                <article class="panel">
+                    <div class="panel-heading"><div class="panel-icon"><i data-lucide="upload"></i></div><div><h2>Send Files</h2><p>Drop your files and get a share link instantly.</p></div></div>
+                    <input id="file-input" type="file" multiple>
+                    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Choose files to send">
+                        <div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Drag &amp; drop files here</h3><div class="browse">or click to browse</div><small>You can send multiple files at once.<br>Any file type, any size.</small>
+                        <div class="badges"><span class="badge"><i data-lucide="file-text"></i>Documents</span><span class="badge"><i data-lucide="image"></i>Photos</span><span class="badge"><i data-lucide="video"></i>Videos</span><span class="badge"><i data-lucide="archive"></i>Zips</span><span class="badge"><i data-lucide="ellipsis"></i>And more</span></div>
+                    </div>
+                    <p class="action-message" id="send-message" role="status" aria-live="polite"></p>
+                    <p class="peer-status" id="peer-status" role="status" aria-live="polite">Creating your secure peer ID...</p>
+                </article>
+
+                <article class="panel">
+                    <div class="panel-heading"><div class="panel-icon"><i data-lucide="download"></i></div><div><h2>Receive Files</h2><p>Enter a code or open a link to receive files.</p></div></div>
+                    <div class="segmented"><button class="active" id="code-tab" type="button"><i data-lucide="hash"></i>Enter Code</button><button id="link-tab" type="button"><i data-lucide="link"></i>Open Link</button></div>
+                    <p class="code-label">Enter the 6-character peer code from the sender</p>
+                    <div class="code-inputs" aria-label="Six digit transfer code"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="First code digit"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="Second code digit"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="Third code digit"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="Fourth code digit"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="Fifth code digit"><input class="code-box" maxlength="1" inputmode="numeric" aria-label="Sixth code digit"></div>
+                    <div id="link-entry" hidden><input id="share-link" type="url" aria-label="Droply share link"></div>
+                    <button class="primary" id="connect-button" type="button">Connect &amp; Receive <i data-lucide="arrow-right"></i></button>
+                    <p class="action-message" id="action-message" role="status" aria-live="polite"></p>
+                    <div class="remote-files" id="remote-files" hidden></div>
+                    <div class="divider">OR</div>
+                    <div class="qr-row" id="qr-button" role="button" tabindex="0"><div class="qr-copy"><i data-lucide="qr-code"></i><div><strong>Share QR Code</strong><small>Share your peer code with another device</small></div></div><i data-lucide="arrow-right"></i></div>
+                </article>
+            </section>
+
+            <section class="features" id="why-droply" aria-label="Droply benefits">
+                <div class="feature"><div class="feature-icon"><i data-lucide="zap"></i></div><div><strong>Lightning Fast</strong><span>Direct peer-to-peer transfer</span></div></div>
+                <div class="feature"><div class="feature-icon"><i data-lucide="lock"></i></div><div><strong>Your Privacy</strong><span>Files never touch our servers</span></div></div>
+                <div class="feature"><div class="feature-icon"><i data-lucide="smartphone"></i></div><div><strong>All Devices</strong><span>Phone, laptop, tablet — anything</span></div></div>
+                <div class="feature"><div class="feature-icon"><i data-lucide="infinity"></i></div><div><strong>No Limits</strong><span>Share as much as you want</span></div></div>
+            </section>
+            <div class="bottom-note note-left">Big files.<br>Small effort.<i data-lucide="arrow-up-right"></i></div>
+            <div class="bottom-note note-right"><i data-lucide="arrow-up-left"></i>Send it.<br>Receive it.<br>Move on.</div>
+        </main>
+    </div>
+    <div class="modal-backdrop" id="qr-modal" hidden role="dialog" aria-modal="true" aria-labelledby="qr-title">
+        <div class="modal"><button class="modal-close" data-close-modal aria-label="Close QR dialog"><i data-lucide="x"></i></button><h2 id="qr-title">Share Droply</h2><p id="qr-description">Scan this code on the receiving device to connect.</p><div id="qr-code" aria-label="Droply peer connection QR code"></div><p class="peer-status" id="qr-peer-status"></p><div class="modal-actions"><button type="button" data-close-modal>Close</button></div></div>
+    </div>
+    <script>
+        lucide.createIcons();
+        const peerStatus = document.getElementById('peer-status');
+        const qrPeerStatus = document.getElementById('qr-peer-status');
+        const peerCode = [...crypto.getRandomValues(new Uint8Array(6))].map((value) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[value % 32]).join('');
+        let peer;
+        let selectedFiles = [];
+        let receiverConnection;
+        const incomingTransfers = new Map();
+        const formatBytes = (bytes) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+        const sendFile = async (connection, fileIndex) => {
+            const file = selectedFiles[fileIndex];
+            if (!file) return;
+            const transferId = `${fileIndex}-${Date.now()}`;
+            const chunkSize = 64 * 1024;
+            connection.send({ type: 'file-start', transferId, name: file.name, size: file.size, mime: file.type || 'application/octet-stream' });
+            for (let offset = 0; offset < file.size; offset += chunkSize) {
+                while (connection.dataChannel && connection.dataChannel.bufferedAmount > 4 * 1024 * 1024) await new Promise((resolve) => setTimeout(resolve, 40));
+                connection.send(await file.slice(offset, offset + chunkSize).arrayBuffer());
+            }
+            connection.send({ type: 'file-end', transferId });
+        };
+        const renderRemoteFiles = (files) => {
+            const container = document.getElementById('remote-files');
+            container.replaceChildren();
+            container.hidden = !files.length;
+            files.forEach((file, index) => {
+                const row = document.createElement('div');
+                row.className = 'remote-file';
+                const info = document.createElement('div');
+                info.className = 'remote-file-info';
+                const name = document.createElement('span');
+                name.className = 'remote-file-name';
+                name.textContent = file.name;
+                const size = document.createElement('span');
+                size.className = 'remote-file-size';
+                size.textContent = formatBytes(file.size);
+                const progress = document.createElement('div');
+                progress.className = 'remote-file-progress';
+                const progressBar = document.createElement('span');
+                progress.append(progressBar);
+                info.append(name, size, progress);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Download';
+                button.addEventListener('click', () => {
+                    if (!receiverConnection || !receiverConnection.open) return;
+                    button.disabled = true;
+                    button.textContent = 'Preparing...';
+                    button.dataset.fileIndex = index;
+                    button._progressBar = progressBar;
+                    receiverConnection.send({ type: 'request-file', fileIndex: index });
+                });
+                row.append(info, button);
+                container.append(row);
+            });
+        };
+        const handlePeerData = (connection, data) => {
+            if (data && data.type === 'file-list') {
+                renderRemoteFiles(data.files);
+                actionMessage.textContent = `${data.files.length} file${data.files.length === 1 ? '' : 's'} available.`;
+            } else if (data && data.type === 'request-files') {
+                connection.send({ type: 'file-list', files: selectedFiles.map((file) => ({ name: file.name, size: file.size, type: file.type })) });
+            } else if (data && data.type === 'request-file') {
+                sendFile(connection, data.fileIndex).catch(() => setPeerStatus('The file could not be sent.', true));
+            } else if (data && data.type === 'file-start') {
+                incomingTransfers.set(data.transferId, { ...data, chunks: [], received: 0 });
+            } else if (data instanceof ArrayBuffer || data instanceof Blob) {
+                const transfer = [...incomingTransfers.values()].at(-1);
+                if (transfer) {
+                    transfer.chunks.push(data);
+                    transfer.received += data.byteLength || data.size;
+                    const button = [...document.querySelectorAll('.remote-file button')].find((item) => item.dataset.fileIndex !== undefined && item.disabled);
+                    if (button?._progressBar) button._progressBar.style.width = `${Math.min(100, transfer.received / transfer.size * 100)}%`;
+                }
+            } else if (data && data.type === 'file-end') {
+                const transfer = incomingTransfers.get(data.transferId);
+                if (!transfer) return;
+                const blob = new Blob(transfer.chunks, { type: transfer.mime });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = transfer.name;
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+                incomingTransfers.delete(data.transferId);
+                actionMessage.textContent = `${transfer.name} downloaded.`;
+                document.querySelectorAll('.remote-file button').forEach((button) => { if (button.disabled) { button.disabled = false; button.textContent = 'Download'; } });
+            }
+        };
+        const attachConnection = (connection, isReceiver = false) => {
+            if (isReceiver) receiverConnection = connection;
+            connection.on('data', (data) => handlePeerData(connection, data));
+            connection.on('open', () => {
+                setPeerStatus('Peer connected. Ready to transfer.');
+                if (isReceiver) connection.send({ type: 'request-files' });
+            });
+            connection.on('close', () => { if (isReceiver) actionMessage.textContent = 'The sender disconnected.'; });
+            connection.on('error', () => setPeerStatus('The peer connection was interrupted.', true));
+        };
+        const setPeerStatus = (message, isError = false) => {
+            peerStatus.innerHTML = isError ? message : `<strong>${message}</strong>`;
+            qrPeerStatus.textContent = message;
+        };
+        const setCodeInputs = (code) => {
+            document.querySelectorAll('.code-box').forEach((input, index) => { input.value = code[index] || ''; });
+        };
+        if (typeof Peer === 'function') {
+            peer = new Peer(peerCode);
+            peer.on('open', (id) => setPeerStatus(`Your peer code: ${id}`));
+            peer.on('connection', (connection) => attachConnection(connection));
+            peer.on('error', (error) => setPeerStatus(`PeerJS error: ${error.type || 'connection failed'}`, true));
+        } else {
+            setPeerStatus('PeerJS could not load. Check your internet connection.', true);
+        }
+        const body = document.body;
+        const themeToggle = document.querySelector('.theme-toggle');
+        const savedTheme = localStorage.getItem('droply-theme');
+        const setTheme = (isLight) => {
+            body.classList.toggle('light', isLight);
+            themeToggle.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+            themeToggle.innerHTML = `<i data-lucide="${isLight ? 'moon' : 'sun'}"></i>`;
+            lucide.createIcons();
+            localStorage.setItem('droply-theme', isLight ? 'light' : 'dark');
+        };
+        setTheme(savedTheme === 'light');
+        themeToggle.addEventListener('click', () => setTheme(!body.classList.contains('light')));
+
+        const fileInput = document.getElementById('file-input');
+        const dropzone = document.getElementById('dropzone');
+        const chooseFiles = () => fileInput.click();
+        dropzone.addEventListener('click', chooseFiles);
+        dropzone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') chooseFiles(); });
+        ['dragenter', 'dragover'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => { event.preventDefault(); dropzone.classList.add('dragging'); }));
+        ['dragleave', 'drop'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => { event.preventDefault(); dropzone.classList.remove('dragging'); }));
+        const setSelectedFiles = (fileList) => {
+            selectedFiles = [...fileList];
+            document.getElementById('send-message').textContent = selectedFiles.length ? `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'} selected.` : '';
+        };
+        dropzone.addEventListener('drop', (event) => setSelectedFiles(event.dataTransfer.files));
+        document.querySelectorAll('.code-box').forEach((box, index, boxes) => {
+            box.addEventListener('input', (event) => { event.target.value = event.target.value.replace(/[^a-z0-9]/gi, '').slice(-1).toUpperCase(); if (event.target.value && boxes[index + 1]) boxes[index + 1].focus(); });
+            box.addEventListener('keydown', (event) => { if (event.key === 'Backspace' && !box.value && boxes[index - 1]) boxes[index - 1].focus(); });
+        });
+        fileInput.addEventListener('change', () => setSelectedFiles(fileInput.files));
+
+        const codeTab = document.getElementById('code-tab');
+        const linkTab = document.getElementById('link-tab');
+        const codeInputs = document.querySelector('.code-inputs');
+        const linkEntry = document.getElementById('link-entry');
+        const codeLabel = document.querySelector('.code-label');
+        const connectButton = document.getElementById('connect-button');
+        const actionMessage = document.getElementById('action-message');
+        const setReceiveMode = (mode) => {
+            const isLink = mode === 'link';
+            codeTab.classList.toggle('active', !isLink);
+            linkTab.classList.toggle('active', isLink);
+            codeInputs.hidden = isLink;
+            linkEntry.hidden = !isLink;
+            codeLabel.textContent = isLink ? 'Paste the share link from the sender' : 'Enter the 6-character peer code from the sender';
+            connectButton.firstChild.textContent = isLink ? 'Open Transfer ' : 'Connect & Receive ';
+            actionMessage.textContent = '';
+        };
+        codeTab.addEventListener('click', () => setReceiveMode('code'));
+        linkTab.addEventListener('click', () => setReceiveMode('link'));
+        connectButton.addEventListener('click', () => {
+            const link = document.getElementById('share-link').value.trim();
+            const code = [...document.querySelectorAll('.code-box')].map((input) => input.value).join('');
+            const remoteCode = linkEntry.hidden ? code.toUpperCase() : (() => { try { return new URL(link).searchParams.get('peer') || ''; } catch { return ''; } })();
+            if (linkEntry.hidden && remoteCode.length !== 6) { actionMessage.textContent = 'Enter the 6-character peer code.'; return; }
+            if (!linkEntry.hidden && !link) { actionMessage.textContent = 'Paste a Droply share link first.'; return; }
+            if (!remoteCode) { actionMessage.textContent = 'That link does not contain a Droply peer code.'; return; }
+            if (!peer) { actionMessage.textContent = 'PeerJS is unavailable. Check your internet connection.'; return; }
+            actionMessage.textContent = `Connecting to peer ${remoteCode}...`;
+            const connection = peer.connect(remoteCode, { reliable: true });
+            attachConnection(connection, true);
+            connection.on('open', () => { actionMessage.textContent = 'Connected. Loading available files...'; });
+            connection.on('error', () => { actionMessage.textContent = 'Could not connect to that peer code.'; });
+        });
+
+        const modal = document.getElementById('qr-modal');
+        const closeModal = () => { modal.hidden = true; };
+        const openModal = () => {
+            modal.hidden = false;
+            const qrTarget = document.getElementById('qr-code');
+            qrTarget.replaceChildren();
+            const shareUrl = new URL(window.location.href);
+            shareUrl.searchParams.set('peer', peerCode);
+            if (typeof QRCode === 'function') new QRCode(qrTarget, { text: shareUrl.toString(), width: 134, height: 134, colorDark: '#151326', colorLight: '#ffffff' });
+            else qrPeerStatus.textContent = 'QR generator could not load. Copy the peer code instead.';
+            qrPeerStatus.textContent = `Peer code: ${peerCode}`;
+            modal.querySelector('.modal-close').focus();
+        };
+        document.getElementById('qr-button').addEventListener('click', openModal);
+        document.getElementById('qr-button').addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') openModal(); });
+        modal.addEventListener('click', (event) => { if (event.target === modal || event.target.closest('[data-close-modal]')) closeModal(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !modal.hidden) closeModal(); });
+        const incomingPeer = new URLSearchParams(window.location.search).get('peer');
+        if (incomingPeer && incomingPeer.length === 6) { setCodeInputs(incomingPeer.toUpperCase()); actionMessage.textContent = 'Peer code loaded from the shared link.'; }
+    </script>
+</body>
+</html>
