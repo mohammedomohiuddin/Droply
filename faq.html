@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="shell">
-        <header class="topbar"><a class="brand" href="p2ptransfer.html"><span class="brand-mark"><span></span></span>Droply</a><nav aria-label="Primary navigation"><a href="p2ptransfer.html">Home</a><a href="how-it-works.html">How it works</a><a href="why-droply.html">Why Droply</a><a class="active" href="faq.html">FAQ</a></nav><button class="theme-toggle" type="button" aria-label="Toggle theme"><i data-lucide="sun"></i></button></header>
+        <header class="topbar"><a class="brand" href="p2ptransfer.html"><span class="brand-mark"><span></span></span>Droply</a><nav aria-label="Primary navigation"><a href="p2ptransfer.html">Home</a><a href="how-it-works.html">How it works</a><a href="why-droply.html">Why Droply</a><a class="active" href="faq.html">FAQ</a></nav><button class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false"><i data-lucide="menu"></i></button><div class="mobile-nav" hidden><a href="p2ptransfer.html">Home</a><a href="how-it-works.html">How it works</a><a href="why-droply.html">Why Droply</a><a class="active" href="faq.html">FAQ</a></div><button class="theme-toggle" type="button" aria-label="Toggle theme"><i data-lucide="sun"></i></button></header>
         <main>
             <section class="hero"><span class="eyebrow">QUESTIONS, ANSWERED</span><h1>Everything you need to <span class="gradient">know.</span></h1><p class="lede">A quick guide to connecting devices, moving files, and understanding what happens to your data.</p><a class="back-link" href="p2ptransfer.html"><i data-lucide="arrow-left"></i>Back to transfer</a></section>
             <section class="faq-list" aria-label="Frequently asked questions">
@@ -33,6 +33,13 @@
         const setTheme = (light) => { body.classList.toggle('light', light); toggle.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme'); toggle.innerHTML = `<i data-lucide="${light ? 'moon' : 'sun'}"></i>`; lucide.createIcons(); localStorage.setItem('droply-theme', light ? 'light' : 'dark'); };
         setTheme(localStorage.getItem('droply-theme') === 'light');
         toggle.addEventListener('click', () => setTheme(!body.classList.contains('light')));
+        const menuToggle = document.querySelector('.menu-toggle');
+        const mobileNav = document.querySelector('.mobile-nav');
+        const closeMobileNav = () => { mobileNav.hidden = true; menuToggle.setAttribute('aria-expanded', 'false'); menuToggle.setAttribute('aria-label', 'Open navigation'); };
+        menuToggle.addEventListener('click', () => { mobileNav.hidden = !mobileNav.hidden; menuToggle.setAttribute('aria-expanded', String(!mobileNav.hidden)); menuToggle.setAttribute('aria-label', mobileNav.hidden ? 'Open navigation' : 'Close navigation'); });
+        mobileNav.addEventListener('click', closeMobileNav);
+        document.addEventListener('click', (event) => { if (!mobileNav.hidden && !event.target.closest('.topbar')) closeMobileNav(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMobileNav(); });
     </script>
 </body>
 </html>
