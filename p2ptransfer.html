@@ -216,12 +216,14 @@
         let receiverConnection;
         const incomingTransfers = new Map();
         const formatBytes = (bytes) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+        const bufferToHex = (buffer) => [...new Uint8Array(buffer)].map((value) => value.toString(16).padStart(2, '0')).join('');
         const sendFile = async (connection, fileIndex) => {
             const file = selectedFiles[fileIndex];
             if (!file) return;
             const transferId = `${fileIndex}-${Date.now()}`;
             const chunkSize = 64 * 1024;
-            connection.send({ type: 'file-start', transferId, name: file.name, size: file.size, mime: file.type || 'application/octet-stream' });
+            const hash = bufferToHex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
+            connection.send({ type: 'file-start', transferId, name: file.name, size: file.size, mime: file.type || 'application/octet-stream', hash });
             for (let offset = 0; offset < file.size; offset += chunkSize) {
                 while (connection.dataChannel && connection.dataChannel.bufferedAmount > 4 * 1024 * 1024) await new Promise((resolve) => setTimeout(resolve, 40));
                 connection.send(await file.slice(offset, offset + chunkSize).arrayBuffer());
@@ -263,7 +265,7 @@
                 container.append(row);
             });
         };
-        const handlePeerData = (connection, data) => {
+        const handlePeerData = async (connection, data) => {
             if (data && data.type === 'file-list') {
                 renderRemoteFiles(data.files);
                 actionMessage.textContent = `${data.files.length} file${data.files.length === 1 ? '' : 's'} available.`;
@@ -273,18 +275,30 @@
                 sendFile(connection, data.fileIndex).catch(() => setPeerStatus('The file could not be sent.', true));
             } else if (data && data.type === 'file-start') {
                 incomingTransfers.set(data.transferId, { ...data, chunks: [], received: 0 });
-            } else if (data instanceof ArrayBuffer || data instanceof Blob) {
+            } else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
                 const transfer = [...incomingTransfers.values()].at(-1);
                 if (transfer) {
-                    transfer.chunks.push(data);
-                    transfer.received += data.byteLength || data.size;
+                    const chunk = data instanceof Blob ? data : data instanceof ArrayBuffer ? data : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+                    transfer.chunks.push(chunk);
+                    transfer.received += chunk.byteLength || chunk.size;
                     const button = [...document.querySelectorAll('.remote-file button')].find((item) => item.dataset.fileIndex !== undefined && item.disabled);
                     if (button?._progressBar) button._progressBar.style.width = `${Math.min(100, transfer.received / transfer.size * 100)}%`;
                 }
             } else if (data && data.type === 'file-end') {
                 const transfer = incomingTransfers.get(data.transferId);
                 if (!transfer) return;
+                if (transfer.received !== transfer.size) {
+                    actionMessage.textContent = `Transfer incomplete: received ${formatBytes(transfer.received)} of ${formatBytes(transfer.size)}.`;
+                    incomingTransfers.delete(data.transferId);
+                    return;
+                }
                 const blob = new Blob(transfer.chunks, { type: transfer.mime });
+                const receivedHash = bufferToHex(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
+                if (receivedHash !== transfer.hash) {
+                    actionMessage.textContent = `${transfer.name} failed integrity verification.`;
+                    incomingTransfers.delete(data.transferId);
+                    return;
+                }
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = transfer.name;
@@ -297,7 +311,7 @@
         };
         const attachConnection = (connection, isReceiver = false) => {
             if (isReceiver) receiverConnection = connection;
-            connection.on('data', (data) => handlePeerData(connection, data));
+            connection.on('data', (data) => handlePeerData(connection, data).catch(() => setPeerStatus('The received file could not be verified.', true)));
             connection.on('open', () => {
                 setPeerStatus('Peer connected. Ready to transfer.');
                 if (isReceiver) connection.send({ type: 'request-files' });
