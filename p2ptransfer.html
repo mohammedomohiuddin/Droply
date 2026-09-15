@@ -211,6 +211,7 @@
         const qrPeerStatus = document.getElementById('qr-peer-status');
         const peerCode = [...crypto.getRandomValues(new Uint8Array(6))].map((value) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[value % 32]).join('');
         let peer;
+        let peerReady = false;
         let selectedFiles = [];
         let receiverConnection;
         const incomingTransfers = new Map();
@@ -313,9 +314,13 @@
         };
         if (typeof Peer === 'function') {
             peer = new Peer(peerCode);
-            peer.on('open', (id) => setPeerStatus(`Your peer code: ${id}`));
+            peer.on('open', (id) => { peerReady = true; setPeerStatus(`Your peer code: ${id}`); });
             peer.on('connection', (connection) => attachConnection(connection));
-            peer.on('error', (error) => setPeerStatus(`PeerJS error: ${error.type || 'connection failed'}`, true));
+            peer.on('error', (error) => {
+                peerReady = false;
+                setPeerStatus(`PeerJS error: ${error.type || 'connection failed'}`, true);
+                document.getElementById('action-message').textContent = `PeerJS error: ${error.type || 'connection failed'}.`;
+            });
         } else {
             setPeerStatus('PeerJS could not load. Check your internet connection.', true);
         }
@@ -376,12 +381,19 @@
             if (linkEntry.hidden && remoteCode.length !== 6) { actionMessage.textContent = 'Enter the 6-character peer code.'; return; }
             if (!linkEntry.hidden && !link) { actionMessage.textContent = 'Paste a Droply share link first.'; return; }
             if (!remoteCode) { actionMessage.textContent = 'That link does not contain a Droply peer code.'; return; }
-            if (!peer) { actionMessage.textContent = 'PeerJS is unavailable. Check your internet connection.'; return; }
+            if (!peer || !peerReady) { actionMessage.textContent = 'Your peer connection is not ready yet. Wait a moment and try again.'; return; }
             actionMessage.textContent = `Connecting to peer ${remoteCode}...`;
             const connection = peer.connect(remoteCode, { reliable: true });
             attachConnection(connection, true);
-            connection.on('open', () => { actionMessage.textContent = 'Connected. Loading available files...'; });
-            connection.on('error', () => { actionMessage.textContent = 'Could not connect to that peer code.'; });
+            let connected = false;
+            const connectionTimeout = setTimeout(() => {
+                if (connected) return;
+                connection.close();
+                actionMessage.textContent = 'Connection timed out. Check the peer code and try again.';
+            }, 15000);
+            connection.on('open', () => { connected = true; clearTimeout(connectionTimeout); actionMessage.textContent = 'Connected. Loading available files...'; });
+            connection.on('error', () => { clearTimeout(connectionTimeout); actionMessage.textContent = 'Could not connect to that peer code.'; });
+            connection.on('close', () => { if (!connected) { clearTimeout(connectionTimeout); actionMessage.textContent = 'Connection closed before it was established.'; } });
         });
 
         const modal = document.getElementById('qr-modal');
